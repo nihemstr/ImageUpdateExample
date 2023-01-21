@@ -2,3 +2,6 @@ src/config.local
 src/image/*.zip
 src/image/*.xz
 **/key.json
+ubuntu-2004-adu/src/workspace/mount
+ubuntu-2004-adu/src/workspace/aptcache
+build.log

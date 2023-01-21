@@ -184,23 +184,46 @@ function mount_image() {
     boot_partition=1
   fi
 
-  # dump the partition table, locate boot partition and root partition
-  fdisk_output=$(sfdisk --json "${image_path}" )
-  boot_offset=$(($(jq ".partitiontable.partitions[] | select(.node == \"$image_path$boot_partition\").start" <<< ${fdisk_output}) * 512))
-  root_offset=$(($(jq ".partitiontable.partitions[] | select(.node == \"$image_path$root_partition\").start" <<< ${fdisk_output}) * 512))
+  if [ "$BUILD_OPTION_MOUNT_UNIT" == "bytes" ]; then
+    # Avoid "overlapping loop device exists" error by using actual partition starting location, in bytes.
+    detach_all_loopback $image_path
+    test_for_image $image_path
+    LODEV=$( losetup --partscan --show --find "${image_path}" )
+    boot_offset=$( parted $LODEV --script unit B print | grep "^ $boot_partition" | awk '{print $2-0}' )
+    boot_size_bytes=$( parted $LODEV --script unit B print | grep "^ $boot_partition" | awk '{print $4-0}' )
+    root_offset=$( parted $LODEV --script unit B print | grep "^ $root_partition" | awk '{print $2-0}' )
+    root_size_bytes=$( parted $LODEV --script unit B print | grep "^ $root_partition" | awk '{print $4-0}' )
+  else
+    # dump the partition table, locate boot partition and root partition
+    fdisk_output=$(sfdisk --byte --json "${image_path}" )
+    boot_offset=$(($(jq ".partitiontable.partitions[] | select(.node == \"$image_path$boot_partition\").start" <<< ${fdisk_output}) * 512))
+    root_offset=$(($(jq ".partitiontable.partitions[] | select(.node == \"$image_path$root_partition\").start" <<< ${fdisk_output}) * 512))
+  fi
 
   echo "Mounting image $image_path on $mount_path, offset for boot partition is $boot_offset, offset for root partition is $root_offset"
 
   # mount root and boot partition
   
-  detach_all_loopback $image_path
-  echo "Mounting root parition"
-  sudo losetup -f
-  sudo mount -o loop,offset=$root_offset $image_path $mount_path/
+  if [ "$BUILD_OPTION_MOUNT_UNIT" == "bytes" ]; then
+    force_detach_all_loopback $image_path
+    echo "Mounting root parition"
+    sudo losetup -f
+    sudo mount -o loop,offset=$root_offset,sizelimit=$root_size_bytes $image_path $mount_path/
+  else
+    detach_all_loopback $image_path
+    echo "Mounting root parition"
+    sudo losetup -f
+    sudo mount -o loop,offset=$root_offset $image_path $mount_path/
+  fi
+  
   if [[ "$boot_partition" != "$root_partition" ]]; then
 	  echo "Mounting boot partition"
 	  sudo losetup -f
-	  sudo mount -o loop,offset=$boot_offset,sizelimit=$( expr $root_offset - $boot_offset ) "${image_path}" "${mount_path}"/"${boot_mount_path}"
+    if [ "$BUILD_OPTION_MOUNT_UNIT" == "bytes" ]; then
+      sudo mount -o loop,offset=$boot_offset,sizelimit=$boot_size_bytes "${image_path}" "${mount_path}"/"${boot_mount_path}"
+    else
+	    sudo mount -o loop,offset=$boot_offset,sizelimit=$( expr $root_offset - $boot_offset ) "${image_path}" "${mount_path}"/"${boot_mount_path}"
+    fi
   fi
   sudo mkdir -p $mount_path/dev/pts
   sudo mount -o bind /dev $mount_path/dev
@@ -596,4 +619,12 @@ function create_rootfs_partition(){
   create_partition $image $size_in_bytes $new_partition_type $new_partition_fstype
 
   detach_all_loopback $image
+}
+
+function force_detach_all_loopback(){
+  # Cleans up mounted loopback devices from the image name
+  # NOTE: it might need a better way to grep for the image name, its might clash with other builds
+  for img in $(losetup  | grep $1 | awk '{ print $1 }' );  do
+    	losetup -d $img
+  done
 }

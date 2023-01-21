@@ -522,3 +522,78 @@ function set_config_var() {
   # See https://github.com/RPi-Distro/raspi-config/blob/master/raspi-config#L231
   raspi-config nonint set_config_var $1 $2 /boot/config.txt
 }
+
+function create_partition(){
+  # Usage create_partition <base_image_file> <size_in_bytes> <partition_type> <file_system_type>
+  image=$1
+  size_bytes=$2
+  new_partition_type=$3
+  new_partition_fstype=$4
+
+  echo "Creat a new partition on $image ($size_bytes bytes, $new_partition_type, $new_partition_fstype)"
+
+  # Increase the image file size.
+  echo "Adding $size_bytes bytes to $image (original size: $size_bytes)..."
+  size_quo_mb=$(($size_bytes / $one_mb))
+  size_rem=$(($size_bytes - ($size_quo_mb * $one_mb)))
+  dd if=/dev/zero bs=$one_mb count=$size_quo_mb >> $image
+  if [[ $size_bytes != 0 ]]
+  then
+    dd if=/dev/zero bs=1 count=$size_rem >> $image
+  fi
+
+  added_bytes=$( ls -l $image | awk '{print $5-$size_bytes}' )
+
+  if [[ $added_bytes == $size_bytes ]]; then
+    echor "Error: failed to add $size_bytes bytes to the image file. "
+    EXIT
+  fi
+
+  detach_all_loopback $image
+  test_for_image $image
+  LODEV=$(losetup --partscan --show --find $image)
+
+  echo "Create new partition "
+  free_part=$( parted $LODEV --script unit B print free | grep "Free Space" | awk END'{print}' )
+  start_mi=$( echo $free_part | awk '{print $1-0}' )
+  end_mi=$( echo $free_part | awk '{print $2-0}' )
+  parted $LODEV --script unit B mkpart $new_partition_type $new_partition_fstype $start_mi $end_mi
+  
+  # Format partition
+  # Get the number of the newly created partition (by looking at the start offset, which is unique)
+  new_part_info=$( parted $LODEV --script unit B print | grep $start_mi | awk END'{print}' )
+  new_part_number=$( echo $new_part_info | awk '{print $1-0}' )
+  part_text=p$new_part_number
+  mkfs.ext4 "$LODEV$part_text"
+
+  parted $LODEV --script unit B print
+
+  detach_all_loopback $image
+  test_for_image $image
+}
+
+function create_rootfs_partition(){
+  # Usage create_root_partition <base_image_file> <source_partition_number> <new_partition_number> <new_partition_type> <new_partition_filesystem_type>
+  image=$1
+  partition=$2
+  new_partition=$3
+  new_partition_type=$4
+  new_partition_fstype=$5
+
+  echo "Creating new rootfs partition with the same size as partiion #$partition on $image (#$new_partition, $new_partition_type, $new_partition_fstype)"
+
+  sector_size=512
+  one_mi=$((1000 * 1000))
+  one_mb=$((1024 * 1024))
+
+  
+  partitioninfo=$(sfdisk -l --bytes $image | grep "$image$partition")
+  size_in_bytes=$(echo $partitioninfo | awk '{print $5-0}')
+
+  detach_all_loopback $image
+  test_for_image $image
+
+  create_partition $image $size_in_bytes $new_partition_type $new_partition_fstype
+
+  detach_all_loopback $image
+}

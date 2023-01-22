@@ -4,4 +4,6 @@ src/image/*.xz
 **/key.json
 ubuntu-2004-adu/src/workspace/mount
 ubuntu-2004-adu/src/workspace/aptcache
+ubuntu-2004-adu/src/workspace/*.img
+ubuntu-2004-adu/src/image/*.xz
 build.log

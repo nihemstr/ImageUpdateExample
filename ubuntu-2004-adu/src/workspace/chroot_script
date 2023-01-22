@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -x
+set -e
+# start_base
+execute_chroot_script '/home/nox/custompios/ubuntu-2004-adu/src/../../src/modules/base' '/home/nox/custompios/ubuntu-2004-adu/src/../../src/modules/base/start_chroot_script'
+# start_network
+execute_chroot_script '/home/nox/custompios/ubuntu-2004-adu/src/../../src/modules/network' '/home/nox/custompios/ubuntu-2004-adu/src/../../src/modules/network/start_chroot_script'
+# end_network
+# start_ubuntu-2004-adu
+execute_chroot_script '/home/nox/custompios/ubuntu-2004-adu/src/modules/ubuntu-2004-adu' '/home/nox/custompios/ubuntu-2004-adu/src/modules/ubuntu-2004-adu/start_chroot_script'
+# end_ubuntu-2004-adu
+execute_chroot_script '/home/nox/custompios/ubuntu-2004-adu/src/modules/ubuntu-2004-adu' '/home/nox/custompios/ubuntu-2004-adu/src/modules/ubuntu-2004-adu/end_chroot_script'
+# end_base
+execute_chroot_script '/home/nox/custompios/ubuntu-2004-adu/src/../../src/modules/base' '/home/nox/custompios/ubuntu-2004-adu/src/../../src/modules/base/end_chroot_script'

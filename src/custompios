@@ -128,6 +128,17 @@ pushd $BASE_WORKSPACE
     enlarge_ext $BASE_IMG_PATH $BASE_ROOT_PARTITION $BASE_IMAGE_ENLARGEROOT
   fi
 
+  if [ -n "$BUILD_OPTION_DUAL_ROOTFS" ]
+  then
+    # TODO: should get partition type and filesystem type from the existing RootFS partition.
+    create_rootfs_partition  $BASE_IMG_PATH $BASE_ROOT_PARTITION $(($BASE_ROOT_PARTITION + 1)) "primary" "ext4"
+  fi
+
+  if [ -n "$BUILD_OPTION_CREATE_DATA_PARTITION" ]
+  then
+    create_partition $BASE_IMG_PATH $BUILD_OPTION_CREATE_DATA_PARTITION_SIZE_BYTES "primary" "$BUILD_OPTION_CREATE_DATA_PARTITION_FSTYPE"
+  fi
+
   # mount root and boot partition
   mount_image "${BASE_IMG_PATH}" "${BASE_ROOT_PARTITION}" "${BASE_MOUNT_PATH}" "${BASE_BOOT_MOUNT_PATH}" "${BASE_BOOT_PARTITION}"
   if [ -n "$BASE_APT_CACHE" ] && [ "$BASE_APT_CACHE" != "no" ]
@@ -190,10 +201,14 @@ pushd $BASE_WORKSPACE
   unmount_image $BASE_MOUNT_PATH
   chmod 777 $BASE_IMG_PATH
 
-  if [ -n "$BASE_IMAGE_RESIZEROOT" ]
-  then
+  if [ -n "$BASE_IMAGE_RESIZEROOT" ] && [ "$BUILD_OPTION_DONOT_RESIZEROOT" != "yes" ]; then
     # resize image to minimal size + provided size
     minimize_ext $BASE_IMG_PATH $BASE_ROOT_PARTITION $BASE_IMAGE_RESIZEROOT
+
+    if [ -n "$BUILD_OPTION_DUAL_ROOTFS" ]; then
+      # resize the 2nd RootFS partition to minimal size + provided size
+      minimize_ext $BASE_IMG_PATH $(($BASE_ROOT_PARTITION + 1)) $BASE_IMAGE_RESIZEROOT
+    fi
   fi
 popd
 

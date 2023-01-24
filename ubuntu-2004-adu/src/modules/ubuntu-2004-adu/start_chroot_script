@@ -13,6 +13,12 @@ set -e
 source /common.sh
 install_cleanup_trap
 
+echo "# Generate the customized boot.scr file that support Dual Copy update strategy."
+pushd /filesystem/boot
+mkimage -A arm -T script -O linux -d boot.cmd.in boot.scr
+cp boot.scr /filesystem/boot/firmware
+popd
+
 unpack /filesystem/home/pi /home/"${BASE_USER}" "${BASE_USER}"
 unpack /filesystem/home/root /root root
 unpack /filesystem/boot /boot
@@ -58,12 +64,12 @@ rm libdeliveryoptimization-dev_1.0.0_arm64.deb
 
 echo_green -e "\nDelivery Optimization 1.0.0 packages installed successfully\n"
 
-echo "# Install the Device Update agent version 1.0.0 package"
+echo_green -e "# Installing the Device Update agent version 1.0.0 package"
 apt -y install deviceupdate-agent=1.0.0
 
 echo_green -e "\nDevice Update for IoT Hub 1.0.0 package installed successfully\n"
 
-echo "# Install the Device Update agent version 1.0.0 package"
+echo "# Install u-boot tools"
 check_install_pkgs u-boot-tools
 
 echo "# Configure Device Update persistent data parition"

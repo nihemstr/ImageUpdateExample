@@ -68,16 +68,6 @@ check_install_pkgs u-boot-tools
 
 echo "# Configure Device Update persistent data parition"
 
-# Given a filename, a regex pattern to match and a string:
-# If found, no change, else append file with string on new line.
-function append1() {
-	if grep $2 $1 > /dev/null; then
-        	echo "exists"
-	else
-		# Not found; append on new line (silently)
-		echo $3 | sudo tee -a $1 >/dev/null
-	fi
-}
 
 # Update fstab data
 echo "/dev/mmcblk0p4   /adu.o    ext4    defaults,sync   0   0" >> /etc/fstab

@@ -821,3 +821,6 @@ By default, the U-Boot script that pre-installed in Ubuntu 20.04 for Raspberry P
     The customized **boot.scr** file will be located in `/boot/firmware` directory and will be invoked at boot time.
     In a nut-shell, we add additional code to determine which Root FS partition is an active partition.
 
+
+## How To Test The Image
+The test update can be generated and imported to the Device Update Service by follow this [instruction](./example-ubuntu-a-b-update/README.md).

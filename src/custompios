@@ -128,15 +128,33 @@ pushd $BASE_WORKSPACE
     enlarge_ext $BASE_IMG_PATH $BASE_ROOT_PARTITION $BASE_IMAGE_ENLARGEROOT
   fi
 
+  DATA_PARTITIION_NUMBER=$(($BASE_ROOT_PARTITION + 1))
   if [ -n "$BUILD_OPTION_DUAL_ROOTFS" ]
   then
     # TODO: should get partition type and filesystem type from the existing RootFS partition.
     create_rootfs_partition  $BASE_IMG_PATH $BASE_ROOT_PARTITION $(($BASE_ROOT_PARTITION + 1)) "primary" "ext4"
+    DATA_PARTITIION_NUMBER=$(($BASE_ROOT_PARTITION + 2))
   fi
 
   if [ -n "$BUILD_OPTION_CREATE_DATA_PARTITION" ]
   then
     create_partition $BASE_IMG_PATH $BUILD_OPTION_CREATE_DATA_PARTITION_SIZE_BYTES "primary" "$BUILD_OPTION_CREATE_DATA_PARTITION_FSTYPE"
+    echo "Create Device Update overlay folders on data partition."
+    DATA_PARTITION_MOUNT_PATH="/mnt/adu.o"
+    mkdir -p $DATA_PARTITION_MOUNT_PATH
+    DATA_LODEV=$(losetup --partscan --show --find $BASE_IMG_PATH )
+    mount "${DATA_LODEV}p$DATA_PARTITIION_NUMBER" $DATA_PARTITION_MOUNT_PATH
+    mkdir -p $DATA_PARTITION_MOUNT_PATH/etc/adu
+    mkdir -p $DATA_PARTITION_MOUNT_PATH/var/lib/adu
+    mkdir -p $DATA_PARTITION_MOUNT_PATH/var/log/adu
+    mkdir -p $DATA_PARTITION_MOUNT_PATH/work/etc/adu
+    mkdir -p $DATA_PARTITION_MOUNT_PATH/work/var/lib/adu
+    mkdir -p $DATA_PARTITION_MOUNT_PATH/work/var/log/adu
+
+    echo_green -e "The following folders are succeffully created:"
+    tree $DATA_PARTITION_MOUNT_PATH
+    umount $DATA_PARTITION_MOUNT_PATH
+    losetup -d $DATA_LODEV
   fi
 
   # mount root and boot partition

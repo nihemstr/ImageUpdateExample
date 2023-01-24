@@ -20,5 +20,70 @@ unpack /filesystem/boot /boot
 echo "This is an example module, install and set up what you need here!"
 echo "$UBUNTU-2004-ADU_VAR"
 
+echo "# Add packages.microsoft.com"
+adu_setup=/tmp/adu-setup
+mkdir -p $adu_setup
+curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list > $adu_setup/microsoft-prod.list
+cp $adu_setup/microsoft-prod.list /etc/apt/sources.list.d/
+curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > $adu_setup/microsoft.gpg
+cp $adu_setup/microsoft.gpg /etc/apt/trusted.gpg.d/
+apt-get update
+
+echo "# List available versions of Device Update Agent and dependencies "
+apt-cache policy aziot-edge aziot-identity-service deviceupdate-agent deliveryoptimization-agent libdeliveryoptimization libcurl4-openssl-dev libssl1.1
+
+echo "# Install the moby engine package (required by aziot-edge)"
+apt -y install moby-engine
+
+echo_green -e "\n Moby Engine installed successfully\n"
+
+echo "# Install the Azure IoT Edge version 1.4.3-1 package"
+apt -y install aziot-edge=1.4.3-1
+
+echo_green -e "\n Azure IoT Edge 1.4.3-1 installed successfully\n"
+
+echo "# Install the Delivery Optimization agent version 1.0.0 package"
+
+check_install_pkgs libcurl4-openssl-dev libboost-filesystem1.71.0 libproxy1v5
+
+wget https://github.com/microsoft/do-client/releases/download/v1.0.0/ubuntu2004_arm64-packages.tar -O ubuntu2004_arm64-packages.tar
+tar -xvzf ubuntu2004_arm64-packages.tar
+rm ubuntu2004_arm64-packages.tar
+dpkg -i deliveryoptimization-agent_1.0.0_arm64.deb
+rm deliveryoptimization-agent_1.0.0_arm64.deb
+dpkg -i libdeliveryoptimization_1.0.0_arm64.deb
+rm libdeliveryoptimization_1.0.0_arm64.deb
+dpkg -i libdeliveryoptimization-dev_1.0.0_arm64.deb
+rm libdeliveryoptimization-dev_1.0.0_arm64.deb
+
+echo_green -e "\nDelivery Optimization 1.0.0 packages installed successfully\n"
+
+echo "# Install the Device Update agent version 1.0.0 package"
+apt -y install deviceupdate-agent=1.0.0
+
+echo_green -e "\nDevice Update for IoT Hub 1.0.0 package installed successfully\n"
+
+echo "# Install the Device Update agent version 1.0.0 package"
+check_install_pkgs u-boot-tools
+
+echo "# Configure Device Update persistent data parition"
+
+# Given a filename, a regex pattern to match and a string:
+# If found, no change, else append file with string on new line.
+function append1() {
+	if grep $2 $1 > /dev/null; then
+        	echo "exists"
+	else
+		# Not found; append on new line (silently)
+		echo $3 | sudo tee -a $1 >/dev/null
+	fi
+}
+
+# Update fstab data
+echo "/dev/mmcblk0p4   /adu.o    ext4    defaults,sync   0   0" >> /etc/fstab
+echo "overlay /etc/adu overlay noauto,x-systemd.automount,lowerdir=/etc/adu,upperdir=/adu.o/etc/adu,workdir=/adu.o/work/etc/adu 0 0" >> /etc/fstab
+echo "overlay /var/lib/adu overlay noauto,x-systemd.automount,lowerdir=/var/lib/adu,upperdir=/adu.o/var/lib/adu,workdir=/adu.o/work/var/lib/adu 0 0" >> /etc/fstab
+echo "overlay /var/log/adu overlay noauto,x-systemd.automount,lowerdir=/var/log/adu,upperdir=/adu.o/var/log/adu,workdir=/adu.o/work/var/log/adu 0 0" >> /etc/fstab
+
 # Unpack root at the end, so files are modified before
 unpack /filesystem/root /

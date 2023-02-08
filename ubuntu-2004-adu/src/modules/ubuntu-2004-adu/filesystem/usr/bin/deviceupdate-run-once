@@ -1,0 +1,10 @@
+#!/bin/bash
+
+echo "\n#\n#\n# Perform the Device Update post-boot tasks...\n#\n#\n#"
+
+echo "# Mounting overlay folders..."
+sudo mount -t overlay -o lowerdir=/etc/adu,upperdir=/adu.o/etc/adu,workdir=/adu.o/work/etc/adu overlay /etc/adu
+sudo mount -t overlay -o lowerdir=/var/lib/adu,upperdir=/adu.o/var/lib/adu,workdir=/adu.o/work/var/lib/adu overlay /var/lib/adu
+sudo mount -t overlay -o lowerdir=/var/log/adu,upperdir=/adu.o/var/log/adu,workdir=/adu.o/work/var/log/adu overlay /var/log/adu
+
+exit 0

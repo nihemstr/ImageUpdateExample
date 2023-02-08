@@ -36,5 +36,8 @@ export BUILD_OPTION_CREATE_DATA_PARTITION=yes
 export BUILD_OPTION_CREATE_DATA_PARTITION_SIZE_BYTES=2147483648
 export BUILD_OPTION_CREATE_DATA_PARTITION_FSTYPE=ext4
 
+# Create a root part for the Device Update configuration and data overlay folders.
+export ADU_OVERLAY_PATH=adu.o
+
 # Mount using actual bytes offset instead of calculating from block/sector size.
 export BUILD_OPTION_MOUNT_UNIT=bytes

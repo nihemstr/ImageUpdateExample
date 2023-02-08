@@ -115,13 +115,18 @@ The following directory should be mounted appropriately:
 
     ```shell
     adu-dev@customPiOS-2204-build:~/custompios$ tree ubuntu-2004-adu
-    ubuntu-2004-adu
+    ubuntu-2004-adu/
+    ├── example-ubuntu-a-b-update
+    │   ├── AduUpdate.psm1
+    │   ├── create-demo-a-b-rootfs-update-import-manifest.ps1
+    │   ├── payloads
+    │   │   └── demo-a-b-rootfs-script.sh
+    │   └── README.md
+    ├── README.md
     └── src
         ├── build_dist
         ├── config
-        ├── custompios_path
         ├── image
-        │   ├── 2022-09-22-raspios-bullseye-armhf-lite.img.xz
         │   └── README
         ├── modules
         │   └── ubuntu-2004-adu
@@ -129,21 +134,32 @@ The following directory should be mounted appropriately:
         │       ├── end_chroot_script
         │       ├── filesystem
         │       │   ├── boot
+        │       │   │   ├── boot.cmd.in
         │       │   │   └── README
+        │       │   ├── etc
+        │       │   │   └── systemd
+        │       │   │       └── system
+        │       │   │           └── deviceupdate-run-once.service
         │       │   ├── home
         │       │   │   ├── pi
         │       │   │   │   └── README
         │       │   │   └── root
         │       │   │       └── README
-        │       │   └── root
-        │       │       └── README
+        │       │   ├── root
+        │       │   │   ├── etc
+        │       │   │   │   └── fw_env.config
+        │       │   │   └── README
+        │       │   └── usr
+        │       │       └── bin
+        │       │           └── deviceupdate-run-once
         │       └── start_chroot_script
-        └── vagrant
-            ├── run_vagrant_build.sh
-            ├── setup.sh
-            └── Vagrantfile
+        ├── vagrant
+        │   ├── run_vagrant_build.sh
+        │   ├── setup.sh
+        │   └── Vagrantfile
+        └── workspace
 
-    11 directories, 15 files
+        11 directories, 14 files
     
     ```
 
@@ -151,10 +167,16 @@ The following directory should be mounted appropriately:
 
     ```shell
     ubuntu-2004-adu/
+    ├── example-ubuntu-a-b-update
+    │   ├── AduUpdate.psm1
+    │   ├── create-demo-a-b-rootfs-update-import-manifest.ps1
+    │   ├── payloads
+    │   │   └── demo-a-b-rootfs-script.sh
+    │   └── README.md
+    ├── README.md
     └── src
         ├── build_dist
         ├── config
-        ├── custompios_path
         ├── image
         │   ├── README
         │   └── ubuntu-20.04.5-preinstalled-server-arm64+raspi.img.xz
@@ -164,42 +186,81 @@ The following directory should be mounted appropriately:
         │       ├── end_chroot_script
         │       ├── filesystem
         │       │   ├── boot
+        │       │   │   ├── boot.cmd.in
         │       │   │   └── README
+        │       │   ├── etc
+        │       │   │   └── systemd
+        │       │   │       └── system
+        │       │   │           └── deviceupdate-run-once.service
         │       │   ├── home
         │       │   │   ├── pi
         │       │   │   │   └── README
         │       │   │   └── root
         │       │   │       └── README
-        │       │   └── root
-        │       │       └── README
+        │       │   ├── root
+        │       │   │   ├── etc
+        │       │   │   │   └── fw_env.config
+        │       │   │   └── README
+        │       │   └── usr
+        │       │       └── bin
+        │       │           └── deviceupdate-run-once
         │       └── start_chroot_script
-        └── vagrant
-            ├── run_vagrant_build.sh
-            ├── setup.sh
-            └── Vagrantfile
+        ├── vagrant
+        │   ├── run_vagrant_build.sh
+        │   ├── setup.sh
+        │   └── Vagrantfile
+        └── workspace
 
-    11 directories, 15 files
+        11 directories, 15 files
+    
     ```
 
 - Edit `ubuntu-2004-adu/src/config`
 
     ```text
-    export DIST_NAME=ubuntu2004-adu
-    export DIST_VERSION=0.0.1
-    export MODULES="base(network,ubuntu2004-adu)"
+    export DIST_NAME=ubuntu-2004-adu
+    export DIST_VERSION=0.1.0
 
+    # rpi-imager json generator settings
+    export RPI_IMAGER_NAME="${DIST_NAME}"
+    export RPI_IMAGER_DESCRIPTION="A Raspberry Pi distro built with CustomPiOS"
+    export RPI_IMAGER_WEBSITE="https://github.com/guysoft/CustomPiOS"
+    export RPI_IMAGER_ICON="https://raw.githubusercontent.com/guysoft/CustomPiOS/devel/media/rpi-imager-CustomPiOS.png"
+
+    export MODULES="base(network,ubuntu-2004-adu)"
+
+    # Base distro information
     export BASE_DISTRO=ubuntu
     export BASE_ARCH=arm64
 
+    # Add user
+    # *** IMPORTANT *** change user and password before distributing the image.
     export BASE_ADD_USER=yes
     export BASE_USER=pi
     export BASE_USER_PASSWORD=adupi
 
-    export BASE_IMAGE_ENLARGEROOT=4000
-    export BASE_IMAGE_RESIZEROOT=200
+    export BASE_IMAGE_ENLARGEROOT=2000
 
-    # TODO: Replace 'CustomePiOS ROOT PATH' with the actual string
-    export BASE_ZIP_IMG=~/custompios/ubuntu-2004-adu/src/image/ubuntu-20.04.5-preinstalled-server-arm64+raspi.img.xz
+    # Don't resize root
+    #export BASE_IMAGE_RESIZEROOT=2000
+    export BUILD_OPTION_DONOT_RESIZEROOT=yes
+
+    # Explicitly specify the image path here
+    export BASE_ZIP_IMG=${DIST_PATH}/image/ubuntu-20.04.5-preinstalled-server-arm64+raspi.img.xz
+
+    # Create 2nd rootfs partition (for dual-copy update strategy)
+    export BUILD_OPTION_DUAL_ROOTFS=yes
+
+    # Create a persistent data partition for ADU configurations and data.
+    export BUILD_OPTION_CREATE_DATA_PARTITION=yes
+    export BUILD_OPTION_CREATE_DATA_PARTITION_SIZE_BYTES=2147483648
+    export BUILD_OPTION_CREATE_DATA_PARTITION_FSTYPE=ext4
+
+    # Create a root part for the Device Update configuration and data overlay folders.
+    export ADU_OVERLAY_PATH=adu.o
+
+    # Mount using actual bytes offset instead of calculating from block/sector size.
+    export BUILD_OPTION_MOUNT_UNIT=bytes
 
     ```
 
@@ -238,11 +299,11 @@ The following directory should be mounted appropriately:
 
     ```shell
     adu-dev@customPiOS-2204-build:~/custompios$ ls -l ubuntu-2004-adu/src/workspace/
-    total 3422396
-    drwxr-xr-x 3 root root       4096 Jan 20 06:19 aptcache
-    -rwxr-xr-x 1 root root        854 Jan 20 06:16 chroot_script
-    drwxr-xr-x 2 root root       4096 Jan 20 06:08 mount
-    -rwxrwxrwx 1 root root 3519022080 Jan 20 06:19 ubuntu-20.04.5-preinstalled-server-arm64+raspi.img
+    total 5647748
+    drwxr-xr-x 3 root root        4096 Feb  8 00:02 aptcache
+    -rwxr-xr-x 1 root root        1010 Feb  7 23:56 chroot_script
+    drwxr-xr-x 2 root root        4096 Jan 20 06:08 mount
+    -rwxrwxrwx 1 root root 13233965056 Feb  8 00:02 ubuntu-20.04.5-preinstalled-server-arm64+raspi.img
     ```
 
     > NOTE | Before continue to the next step, it is a good practice to verify that the built image is working correctly. You should test the image on the Raspberry Pi device first.
@@ -339,7 +400,7 @@ To create the second RootFS, we need to add additional helper functions used for
         new_partition_type=$4
         new_partition_fstype=$5
 
-        echo "Creating new rootfs partition with the same size as partiion #$partition on $image (#$new_partition, $new_partition_type, $new_partition_fstype)"
+        echo "Creating new rootfs partition with the same size as partition #$partition on $image (#$new_partition, $new_partition_type, $new_partition_fstype)"
 
         sector_size=512
         one_mi=$((1000 * 1000))
@@ -512,7 +573,7 @@ To create the second RootFS, we need to add additional helper functions used for
     export BUILD_OPTION_DONOT_RESIZEROOT=yes
 
     # Explicitly specify the image path here
-    export BASE_ZIP_IMG=$DIS_PATH/image/ubuntu-20.04.5-preinstalled-server-arm64+raspi.img.xz
+    export BASE_ZIP_IMG=${DIST_PATH}/image/ubuntu-20.04.5-preinstalled-server-arm64+raspi.img.xz
 
     # Create 2nd rootfs partition (for dual-copy update strategy)
     export BUILD_OPTION_DUAL_ROOTFS=yes
@@ -521,6 +582,9 @@ To create the second RootFS, we need to add additional helper functions used for
     export BUILD_OPTION_CREATE_DATA_PARTITION=yes
     export BUILD_OPTION_CREATE_DATA_PARTITION_SIZE_BYTES=2147483648
     export BUILD_OPTION_CREATE_DATA_PARTITION_FSTYPE=ext4
+
+    # Create a root part for the Device Update configuration and data overlay folders.
+    export ADU_OVERLAY_PATH=adu.o
 
     # Mount using actual bytes offset instead of calculating from block/sector size.
     export BUILD_OPTION_MOUNT_UNIT=bytes
@@ -580,7 +644,7 @@ apt-cache policy deviceupdate-agent deliveryoptimization-agent libdeliveryoptimi
 
 ### Install the Azure IoT Edge packages
 
-For this tutorial, we will be using the Azure IoT Edge version 1.4.3-1
+For this tutorial, we will be using the Azure IoT Edge version 1.4.8-1
 
 Add following script in  `ubuntu2004-adu/src/modules/ubuntu2004-adu/start_chroot_script`:
 
@@ -590,10 +654,10 @@ apt -y install moby-engine
 
 echo_green -e "\n Moby Engine installed successfully\n"
 
-echo "# Install the Azure IoT Edge version 1.4.3-1 package"
-apt -y install aziot-edge=1.4.3-1
+echo "# Install the Azure IoT Edge version 1.4.8-1 package"
+apt -y install aziot-edge=1.4.8-1
 
-echo_green -e "\n Azure IoT Edge 1.4.3-1 installed successfully\n"
+echo_green -e "\n Azure IoT Edge 1.4.8-1 installed successfully\n"
 
 ```
 
@@ -623,15 +687,15 @@ echo_green -e "\nDelivery Optimization 1.0.0 packages installed successfully\n"
 
 ### Install the Device Update for IoT Hub package
 
-For this tutorial, we will be using the Device Update Agent for IoT Hub version 1.0.0
+For this tutorial, we will be using the Device Update Agent for IoT Hub version 1.0.2
 
 Add following script in  `ubuntu2004-adu/src/modules/ubuntu2004-adu/start_chroot_script`:
 
 ```shell
-echo "# Install the Device Update agent version 1.0.0 package"
-apt -y install deviceupdate-agent=1.0.0
+echo "# Install the Device Update agent version 1.0.2 package"
+apt -y install deviceupdate-agent=1.0.2
 
-echo_green -e "\nDevice Update for IoT Hub 1.0.0 package installed successfully\n"
+echo_green -e "\nDevice Update for IoT Hub 1.0.2 package installed successfully\n"
 
 ```
 
@@ -646,7 +710,7 @@ Moby Engine installed successfully
 
 ...
 
- Azure IoT Edge 1.4.3-1 installed successfully
+ Azure IoT Edge 1.4.8-1 installed successfully
 
 ...
 
@@ -654,7 +718,7 @@ Delivery Optimization 1.0.0 packages installed successfully
 
 ...
 
-Device Update for IoT Hub 1.0.0 package installed successfully
+Device Update for IoT Hub 1.0.2 package installed successfully
 
 ...
 
@@ -677,34 +741,39 @@ This can be achieved by using the following steps:
     ```shell
     if [ -n "$BUILD_OPTION_CREATE_DATA_PARTITION" ]
     then
+        echo -e " Creating persistent data parition (#$DATA_PARITION_NUMBER)"
         create_partition $BASE_IMG_PATH $BUILD_OPTION_CREATE_DATA_PARTITION_SIZE_BYTES "primary" "$BUILD_OPTION_CREATE_DATA_PARTITION_FSTYPE"
-        echo "Create Device Update overlay folders on data partition."
-        DATA_PARTITION_MOUNT_PATH="/mnt/adu.o"
-        mkdir -p $DATA_PARTITION_MOUNT_PATH
-        DATA_LODEV=$(losetup --partscan --show --find $BASE_IMG_PATH )
-        mount "${DATA_LODEV}p$DATA_PARTITIION_NUMBER" $DATA_PARTITION_MOUNT_PATH
-        mkdir -p $DATA_PARTITION_MOUNT_PATH/etc/adu
-        mkdir -p $DATA_PARTITION_MOUNT_PATH/var/lib/adu
-        mkdir -p $DATA_PARTITION_MOUNT_PATH/var/log/adu
-        mkdir -p $DATA_PARTITION_MOUNT_PATH/work/etc/adu
-        mkdir -p $DATA_PARTITION_MOUNT_PATH/work/var/lib/adu
-        mkdir -p $DATA_PARTITION_MOUNT_PATH/work/var/log/adu
+        if [ "$ADU_OVERLAY_PATH" != "" ]; then
+            echo "Create Device Update overlay folders on data partition."
+            DATA_PARTITION_MOUNT_PATH="/mnt/$ADU_OVERLAY_PATH"
+            mkdir -p $DATA_PARTITION_MOUNT_PATH
+            DATA_LODEV=$(losetup --partscan --show --find $BASE_IMG_PATH )
+            mount "${DATA_LODEV}p$DATA_PARTITION_NUMBER" $DATA_PARTITION_MOUNT_PATH
+            mkdir -p $DATA_PARTITION_MOUNT_PATH/etc/adu
+            mkdir -p $DATA_PARTITION_MOUNT_PATH/var/lib/adu
+            mkdir -p $DATA_PARTITION_MOUNT_PATH/var/log/adu
+            mkdir -p $DATA_PARTITION_MOUNT_PATH/work/etc/adu
+            mkdir -p $DATA_PARTITION_MOUNT_PATH/work/var/lib/adu
+            mkdir -p $DATA_PARTITION_MOUNT_PATH/work/var/log/adu
 
-        echo_green -e "The following folders are succeffully created:"
-        tree $DATA_PARTITION_MOUNT_PATH
-        umount $DATA_PARTITION_MOUNT_PATH
-        losetup -d $DATA_LODEV
+            echo_green -e "The following folders are succeffully created:"
+            tree $DATA_PARTITION_MOUNT_PATH
+            umount $DATA_PARTITION_MOUNT_PATH
+            losetup -d $DATA_LODEV
+        fi
     fi
     ```
 
 - Update `fstab` (in `ubuntu2004-adu/src/modules/start_chroot_script`)
+
+>NOTE: At the time of writing, errors occured when mouting overlay file system below. An alternative approach is to run a `post-boot` script that mounting all Device Update configuration and data folder once, when device booted.
   
     ```shell
     # Update fstab data
-    echo "/dev/mmcblk0p4   /adu.o    ext4    defaults,sync   0   0" >> /etc/fstab
-    echo "overlay /etc/adu overlay noauto,x-systemd.automount,lowerdir=/etc/adu,upperdir=/adu.o/etc/adu,workdir=/adu.o/work/etc/adu 0 0" >> /etc/fstab
-    echo "overlay /var/lib/adu overlay noauto,x-systemd.automount,lowerdir=/var/lib/adu,upperdir=/adu.o/var/lib/adu,workdir=/adu.o/work/var/lib/adu 0 0" >> /etc/fstab
-    echo "overlay /var/log/adu overlay noauto,x-systemd.automount,lowerdir=/var/log/adu,upperdir=/adu.o/var/log/adu,workdir=/adu.o/work/var/log/adu 0 0" >> /etc/fstab
+    echo "/dev/mmcblk0p4   /$ADU_OVERLAY_PATH    ext4    defaults,sync   0   0" >> /etc/fstab
+    echo "overlay /etc/adu overlay noauto,x-systemd.automount,lowerdir=/etc/adu,upperdir=/$ADU_OVERLAY_PATH/etc/adu,workdir=/$ADU_OVERLAY_PATH/work/etc/adu 0 0" >> /etc/fstab
+    echo "overlay /var/lib/adu overlay noauto,x-systemd.automount,lowerdir=/var/lib/adu,upperdir=/$ADU_OVERLAY_PATH/var/lib/adu,workdir=/$ADU_OVERLAY_PATH/work/var/lib/adu 0 0" >> /etc/fstab
+    echo "overlay /var/log/adu overlay noauto,x-systemd.automount,lowerdir=/var/log/adu,upperdir=/$ADU_OVERLAY_PATH/var/log/adu,workdir=/$ADU_OVERLAY_PATH/work/var/log/adu 0 0" >> /etc/fstab
 
     ```
 

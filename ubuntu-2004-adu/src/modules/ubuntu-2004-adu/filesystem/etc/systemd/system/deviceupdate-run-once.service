@@ -1,0 +1,11 @@
+[Unit]
+Description=A system service that perform the Device Update environement setup tasks once after reboot.
+After=network.target
+Before=deviceupdate-agent
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/deviceupdate-run-once
+
+[Install]
+WantedBy=default.target

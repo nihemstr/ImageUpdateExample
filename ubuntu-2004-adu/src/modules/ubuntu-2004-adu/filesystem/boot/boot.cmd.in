@@ -5,7 +5,7 @@
 #  devnum               The device number of the given type
 #  distro_bootpart      The partition containing the boot files
 #                       (introduced in u-boot mainline 2016.01)
-#  prefix               Prefix within the boot partiion to the boot files
+#  prefix               Prefix within the boot partition to the boot files
 #  kernel_addr_r        Address to load the kernel to
 #  fdt_addr_r           Address to load the FDT to
 #  ramdisk_addr_r       Address to load the initrd to.

@@ -169,7 +169,11 @@ function mount_image() {
   image_path=$1
   root_partition=$2
   mount_path=$3
-  
+
+  data_partition=$DATA_PARTITION_NUMBER
+  data_offset=0
+  data_size_bytes=0
+
   boot_mount_path=boot
 
   if [ "$#" -gt 3 ]
@@ -193,16 +197,27 @@ function mount_image() {
     boot_size_bytes=$( parted $LODEV --script unit B print | grep "^ $boot_partition" | awk '{print $4-0}' )
     root_offset=$( parted $LODEV --script unit B print | grep "^ $root_partition" | awk '{print $2-0}' )
     root_size_bytes=$( parted $LODEV --script unit B print | grep "^ $root_partition" | awk '{print $4-0}' )
+
+    if [ "$data_partition" != "" ]; then
+      data_offset=$( parted $LODEV --script unit B print | grep "^ $data_partition" | awk '{print $2-0}' )
+      data_size_bytes=$( parted $LODEV --script unit B print | grep "^ $data_partition" | awk '{print $4-0}' )
+    fi
+
   else
     # dump the partition table, locate boot partition and root partition
     fdisk_output=$(sfdisk --byte --json "${image_path}" )
     boot_offset=$(($(jq ".partitiontable.partitions[] | select(.node == \"$image_path$boot_partition\").start" <<< ${fdisk_output}) * 512))
     root_offset=$(($(jq ".partitiontable.partitions[] | select(.node == \"$image_path$root_partition\").start" <<< ${fdisk_output}) * 512))
+
+    if [ "$data_partition" != "" ]; then
+      data_offset=$(($(jq ".partitiontable.partitions[] | select(.node == \"$image_path$data_partition\").start" <<< ${fdisk_output}) * 512))
+    fi
+
   fi
 
   echo "Mounting image $image_path on $mount_path, offset for boot partition is $boot_offset, offset for root partition is $root_offset"
 
-  # mount root and boot partition
+  # mount root, boot partition and data partition.
   
   if [ "$BUILD_OPTION_MOUNT_UNIT" == "bytes" ]; then
     force_detach_all_loopback $image_path
@@ -225,10 +240,25 @@ function mount_image() {
 	    sudo mount -o loop,offset=$boot_offset,sizelimit=$( expr $root_offset - $boot_offset ) "${image_path}" "${mount_path}"/"${boot_mount_path}"
     fi
   fi
+
   sudo mkdir -p $mount_path/dev/pts
   sudo mount -o bind /dev $mount_path/dev
   sudo mount -o bind /dev/pts $mount_path/dev/pts
   sudo mount -o bind /proc $mount_path/proc
+
+  # Mount the persistent data partition so that we can update the Device Update overlay folders' owners
+  # after installed deviceupdate-agent package.
+  if [ "$data_partition" != "" ]; then
+	  echo_green -e "Mounting data partition (part#$data_partition, path=$mount_path/$ADU_OVERLAY_PATH)"
+    sudo mkdir -p $mount_path/$ADU_OVERLAY_PATH
+    sudo mount -o bind $DATA_PARTITION_MOUNT_PATH $mount_path/$ADU_OVERLAY_PATH
+	  sudo losetup -f
+    if [ "$BUILD_OPTION_MOUNT_UNIT" == "bytes" ]; then
+      sudo mount -o loop,offset=$data_offset,sizelimit=$data_size_bytes "${image_path}" "${DATA_PARTITION_MOUNT_PATH}"
+    else
+	    sudo mount -o loop,offset=$data_offset "${image_path}" "${DATA_PARTITION_MOUNT_PATH}"
+    fi
+  fi
 }
 
 function unmount_image() {
@@ -247,6 +277,14 @@ function unmount_image() {
       echo "Killing process $(ps -p $pid -o comm=) with pid $pid..."
       sudo kill -9 $pid
     done
+
+    if [ "$DATA_PARTITION_NUMBER" != "" ]; then
+      for pid in $(sudo lsof -t "$DATA_PARTITION_MOUNT_PATH")
+      do
+        echo "Killing process $(ps -p $pid -o comm=) with pid $pid..."
+        sudo kill -9 $pid
+      done
+    fi
   fi
 
   # Unmount everything that is mounted
@@ -265,6 +303,14 @@ function unmount_image() {
     echo "Unmounting $m..."
     sudo umount $m
   done
+
+  if [ "$DATA_PARTITION_NUMBER" != "" ]; then
+    for m in $(sudo mount | grep $DATA_PARTITION_MOUNT_PATH | awk -F " on " '{print $2}' | awk '{print $1}' | sort -r)
+    do
+      echo "Unmounting $m..."
+      sudo umount $m
+    done
+  fi
 }
 
 function cleanup() {
@@ -603,7 +649,7 @@ function create_rootfs_partition(){
   new_partition_type=$4
   new_partition_fstype=$5
 
-  echo "Creating new rootfs partition with the same size as partiion #$partition on $image (#$new_partition, $new_partition_type, $new_partition_fstype)"
+  echo "Creating new rootfs partition with the same size as partition #$partition on $image (#$new_partition, $new_partition_type, $new_partition_fstype)"
 
   sector_size=512
   one_mi=$((1000 * 1000))

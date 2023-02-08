@@ -16,6 +16,7 @@ install_cleanup_trap
 echo "# Generate the customized boot.scr file that support Dual Copy update strategy."
 pushd /filesystem/boot
 mkimage -A arm -T script -O linux -d boot.cmd.in boot.scr
+mkdir -p /filesystem/boot/firmware
 cp boot.scr /filesystem/boot/firmware
 popd
 
@@ -43,14 +44,14 @@ apt -y install moby-engine
 
 echo_green -e "\n Moby Engine installed successfully\n"
 
-echo "# Install the Azure IoT Edge version 1.4.3-1 package"
-apt -y install aziot-edge=1.4.3-1
+echo "# Install the Azure IoT Edge version 1.4.8-1 package"
+apt -y install aziot-edge=1.4.8-1
 
-echo_green -e "\n Azure IoT Edge 1.4.3-1 installed successfully\n"
+echo_green -e "\n Azure IoT Edge 1.4.8-1 installed successfully\n"
 
 echo "# Install the Delivery Optimization agent version 1.0.0 package"
 
-check_install_pkgs libcurl4-openssl-dev libboost-filesystem1.71.0 libproxy1v5
+check_install_pkgs libcurl4-openssl-dev libboost-filesystem1.71.0 libproxy1v5 tree
 
 wget https://github.com/microsoft/do-client/releases/download/v1.0.0/ubuntu2004_arm64-packages.tar -O ubuntu2004_arm64-packages.tar
 tar -xvzf ubuntu2004_arm64-packages.tar
@@ -64,22 +65,53 @@ rm libdeliveryoptimization-dev_1.0.0_arm64.deb
 
 echo_green -e "\nDelivery Optimization 1.0.0 packages installed successfully\n"
 
-echo_green -e "# Installing the Device Update agent version 1.0.0 package"
-apt -y install deviceupdate-agent=1.0.0
+echo_green -e "# Installing the Device Update agent version 1.0.2 package"
+apt -y install deviceupdate-agent=1.0.2
 
-echo_green -e "\nDevice Update for IoT Hub 1.0.0 package installed successfully\n"
+if [ "$ADU_OVERLAY_PATH" != "" ]; then
+    echo "\n#\n# Update Device Update configuration, log, and data folders ownership...\n#\n"
+
+    echo "\n#\n# Before\n#\n"
+    tree -pug "/$ADU_OVERLAY_PATH"
+
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/etc/adu"
+    chmod u=rwx,g=rx,o= "/$ADU_OVERLAY_PATH/etc/adu"
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/work/etc/adu"
+    chmod u=rwx,g=rx,o= "/$ADU_OVERLAY_PATH/work/etc/adu"
+
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/var/lib/adu"
+    chmod u=rwx,g=rwx,o= "/$ADU_OVERLAY_PATH/var/lib/adu"
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/work/var/lib/adu"
+    chmod u=rwx,g=rwx,o= "/$ADU_OVERLAY_PATH/work/var/lib/adu"
+
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/var/log/adu"
+    chmod u=rwx,g=rx "/$ADU_OVERLAY_PATH/var/log/adu"
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/work/var/log/adu"
+    chmod u=rwx,g=rx "/$ADU_OVERLAY_PATH/work/var/log/adu"
+
+    echo "\n#\n# After \n#\n"
+    tree -pug "/$ADU_OVERLAY_PATH" 
+fi
+
+echo_green -e "\nDevice Update for IoT Hub 1.0.2 package installed successfully\n"
 
 echo "# Install u-boot tools"
 check_install_pkgs u-boot-tools
 
 echo "# Configure Device Update persistent data parition"
 
-
 # Update fstab data
-echo "/dev/mmcblk0p4   /adu.o    ext4    defaults,sync   0   0" >> /etc/fstab
-echo "overlay /etc/adu overlay noauto,x-systemd.automount,lowerdir=/etc/adu,upperdir=/adu.o/etc/adu,workdir=/adu.o/work/etc/adu 0 0" >> /etc/fstab
-echo "overlay /var/lib/adu overlay noauto,x-systemd.automount,lowerdir=/var/lib/adu,upperdir=/adu.o/var/lib/adu,workdir=/adu.o/work/var/lib/adu 0 0" >> /etc/fstab
-echo "overlay /var/log/adu overlay noauto,x-systemd.automount,lowerdir=/var/log/adu,upperdir=/adu.o/var/log/adu,workdir=/adu.o/work/var/log/adu 0 0" >> /etc/fstab
+echo "/dev/mmcblk0p4   /$ADU_OVERLAY_PATH    ext4    defaults,sync   0   0" >> /etc/fstab
 
 # Unpack root at the end, so files are modified before
 unpack /filesystem/root /
+
+echo "# Install and enable the Device Update Run-Once systemd service... "
+unpack /filesystem/usr/bin /usr/bin root
+chmod 0744 /usr/bin/deviceupdate-run-once
+
+unpack /filesystem/etc/systemd/system /etc/systemd/system root
+chmod 664 /etc/systemd/system/deviceupdate-run-once.service
+systemctl daemon-reload
+systemctl enable deviceupdate-run-once.service
+

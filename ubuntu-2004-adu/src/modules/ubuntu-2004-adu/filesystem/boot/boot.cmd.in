@@ -24,11 +24,11 @@ echo "#"
 echo "#  IMPORTANT MESSAGE "
 echo "#  ================= "
 echo "#"
-echo "#  This boot script has been modified to support the Device Update Agent"
-echo "#  for IoT Hub."
+echo "#  This boot script has been modified to support the"
+echo "#  Device Update Agent for IoT Hub."
 echo "#"
 echo "#  It demonstrates the Image-based update functionality using the"
-echo "#  dual Root FS (a.k.a. A/B) update strategy. "
+echo "#  dual Root FS partitions, a.k.a. Dual-Copy update strategy. "
 echo "#"
 echo "#  Environment:"
 echo "#     env_initialized : ${env_initialized}"
@@ -36,32 +36,63 @@ echo "#     adu_root_fs     : ${env_initialized}"
 echo "#     distro_bootpart : ${distro_bootpart}"
 echo "#     bootargs        : ${bootargs}"
 echo "#"
+echo "# Initializing..."
 
-sleep 10
-
-# Create uboot.env if doesn't exists.
-#if test ! -e mmc 0:1 uboot.env; then saveenv; fi;
+#
+# Workaround for Ubuntu 20.04
+#
+# Force create uboot.env if doesn't exists.
+#
 if env exists env_initialized; then
   echo "boot.env exists... no-op."
 else
   echo "#"
-  echo "# Generating uboot.env...."
+  echo "# Force save uboot.env for the first time...."
   echo "#"
   setenv env_initialized yes
   saveenv
-  sleep 10
+  # For debugging purposes, pause for 5 seconds
+  sleep 5
 fi
 
-# try to boot to the partition containing the update-image.
-if env exists adu_root_fs; then
-  setenv bootargs "${bootargs} root=/dev/mmcblk0p${adu_root_fs}"
+#
+# Selecting the root fs partition.
+#
+# NOTE
+#   As of 01/08/2023, there is an issue where fw_senenv and fw_printenv are not 
+#   working correctly on Ubuntu 20.04 for RPi. We are working around this issue by using file names
+#   (e.g., /boot/firmware/adu_desired_root_fs_a or /boot_firmware/adu_desired_root_fs_b) to 
+#   indicate the desired root fs partition.
+# 
+# The similar logics can be implemented using fw_setenv, when possible.
+#
+
+if env exists adu_desired_root_fs; then
+  setenv bootargs "${bootargs} quiet splash root=/dev/mmcblk0p${adu_desired_root_fs}"
+  setenv adu_boot_partition_txt="root=/dev/mmcblk0p${adu_desired_root_fs}" 
+elif test -e mmc 0:1 adu_desired_root_fs_a; then
+  echo "# 'adu_desired_root_fs_a' detected, will boot from /dev/mmcblk0p2"
+  setenv bootargs " ${bootargs} root=/dev/mmcblk0p2 quiet splash"
+  setenv adu_boot_partition_txt="root=/dev/mmcblk0p2" 
+elif test -e mmc 0:1 adu_desired_root_fs_b; then
+  echo "# 'adu_desired_root_fs_b' detected, will boot from /dev/mmcblk0p3"
+  setenv bootargs " ${bootargs} root=/dev/mmcblk0p3 quiet splash"
+  setenv adu_boot_partition_txt="root=/dev/mmcblk0p3" 
 else
+  echo "# No adu desired root fs specified. Boot without customized params."
   setenv bootargs " ${bootargs} quiet splash"
 fi
 
+echo "#"
 echo "#     bootargs        : ${bootargs}"
 echo "#"
 echo "######################################################################"
+
+sleep 5
+
+if env exists adu_boot_pause; then
+  sleep 10
+fi
 
 setenv kernel_filename vmlinuz
 setenv core_state "/uboot/ubuntu/boot.sel"
@@ -140,7 +171,9 @@ for pathprefix in ${fk_image_locations}; do
       setenv ramdisk_param "-"
     fi
     for cmd in ${try_boot}; do
-        echo "Booting Ubuntu (with ${cmd}) from ${devtype} ${devnum}:${partition}..."
+        echo "# "
+        echo "# Booting Ubuntu (with ${cmd}) from ${devtype} ${devnum}:${kernel_bootpart} ${adu_boot_partition_txt}..."
+        echo "# "
         ${cmd} ${kernel_addr_r} ${ramdisk_param} ${fdt_addr_r}
     done
   fi

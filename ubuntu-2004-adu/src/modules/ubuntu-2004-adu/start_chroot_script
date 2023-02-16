@@ -98,7 +98,7 @@ echo_green -e "\nDevice Update for IoT Hub 1.0.2 package installed successfully\
 echo "# Install u-boot tools"
 check_install_pkgs u-boot-tools
 
-echo "# Configure Device Update persistent data parition"
+echo "# Configure Device Update persistent data partition"
 
 # Update fstab data
 echo "/dev/mmcblk0p4   /$ADU_OVERLAY_PATH    ext4    defaults,sync   0   0" >> /etc/fstab

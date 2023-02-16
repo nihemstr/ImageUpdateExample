@@ -502,12 +502,12 @@ To create the second RootFS, we need to add additional helper functions used for
         
         if [ "$BUILD_OPTION_MOUNT_UNIT" == "bytes" ]; then
             force_detach_all_loopback $image_path
-            echo "Mounting root parition"
+            echo "Mounting root partition"
             sudo losetup -f
             sudo mount -o loop,offset=$root_offset,sizelimit=$root_size_bytes $image_path $mount_path/
         else
             detach_all_loopback $image_path
-            echo "Mounting root parition"
+            echo "Mounting root partition"
             sudo losetup -f
             sudo mount -o loop,offset=$root_offset $image_path $mount_path/
         fi
@@ -741,7 +741,7 @@ This can be achieved by using the following steps:
     ```shell
     if [ -n "$BUILD_OPTION_CREATE_DATA_PARTITION" ]
     then
-        echo -e " Creating persistent data parition (#$DATA_PARITION_NUMBER)"
+        echo -e " Creating persistent data partition (#$DATA_PARTITION_NUMBER)"
         create_partition $BASE_IMG_PATH $BUILD_OPTION_CREATE_DATA_PARTITION_SIZE_BYTES "primary" "$BUILD_OPTION_CREATE_DATA_PARTITION_FSTYPE"
         if [ "$ADU_OVERLAY_PATH" != "" ]; then
             echo "Create Device Update overlay folders on data partition."
@@ -874,7 +874,7 @@ Now, you are ready to deploy some update to your device.
 
 ### Customize and generate a U-Boot script (boot.scr) to support Dual-Copy update strategy
 
-By default, the U-Boot script that pre-installed in Ubuntu 20.04 for Raspberry Pi image doesn't support Dual-Copy RootFS updates. We need to be able to tell the U-Boot which parition is the **active RootFS partition**.
+By default, the U-Boot script that pre-installed in Ubuntu 20.04 for Raspberry Pi image doesn't support Dual-Copy RootFS updates. We need to be able to tell the U-Boot which partition is the **active RootFS partition**.
 
 
 

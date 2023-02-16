@@ -655,7 +655,7 @@ InstallUpdate() {
             adu_desired_root_fs='a'
         fi
 
-        # Unmount the target parition if needed.
+        # Unmount the target partition if needed.
         tmp_out=$(mount | grep "$new_root_fs_dev")
         if [[ "$tmp_out" != "" ]]; then
             log_info "Unmounting '$new_root_fs_dev'..."
@@ -847,7 +847,7 @@ CancelUpdate() {
 
     echo "Revert update." >> "${log_file}"
 
-    # Tell boot-loader to use active parition.
+    # Tell boot-loader to use active partition.
 
     # Only delete the desired_root_fs
     rootfs_indicator_file="$boot_loader_folder/adu_desired_root_fs_$adu_active_root_fs"

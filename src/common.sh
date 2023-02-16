@@ -221,12 +221,12 @@ function mount_image() {
   
   if [ "$BUILD_OPTION_MOUNT_UNIT" == "bytes" ]; then
     force_detach_all_loopback $image_path
-    echo "Mounting root parition"
+    echo "Mounting root partition"
     sudo losetup -f
     sudo mount -o loop,offset=$root_offset,sizelimit=$root_size_bytes $image_path $mount_path/
   else
     detach_all_loopback $image_path
-    echo "Mounting root parition"
+    echo "Mounting root partition"
     sudo losetup -f
     sudo mount -o loop,offset=$root_offset $image_path $mount_path/
   fi
@@ -371,7 +371,7 @@ FDISK
   losetup -d $LODEV
 
   trap - EXIT
-  echo "Resized parition $partition of $image to +$size MB"
+  echo "Resized partition $partition of $image to +$size MB"
 }
 
 function shrink_ext() {

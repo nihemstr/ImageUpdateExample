@@ -141,7 +141,7 @@ pushd $BASE_WORKSPACE
 
   if [ -n "$BUILD_OPTION_CREATE_DATA_PARTITION" ]
   then
-    echo -e " Creating persistent data parition (#$DATA_PARITION_NUMBER)"
+    echo -e " Creating persistent data partition (#$DATA_PARTITION_NUMBER)"
     create_partition $BASE_IMG_PATH $BUILD_OPTION_CREATE_DATA_PARTITION_SIZE_BYTES "primary" "$BUILD_OPTION_CREATE_DATA_PARTITION_FSTYPE"
     if [ "$ADU_OVERLAY_PATH" != "" ]; then
       echo "Create Device Update overlay folders on data partition."

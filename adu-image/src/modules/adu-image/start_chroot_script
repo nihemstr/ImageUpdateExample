@@ -24,49 +24,47 @@ unpack /filesystem/home/pi /home/"${BASE_USER}" "${BASE_USER}"
 unpack /filesystem/home/root /root root
 unpack /filesystem/boot /boot
 
-echo "This is an example module, install and set up what you need here!"
-echo "$UBUNTU-2004-ADU_VAR"
+distro=$(echo "$ADU_DISTRO_VERSION" | cut -d'-' -f1)
+version=$(echo "$ADU_DISTRO_VERSION" | cut -d'-' -f2)
+if [ -f /etc/os-release ]; then
+    # freedesktop.org and systemd
+    . /etc/os-release
+    distro=$NAME
+    version=$VERSION_ID
+fi
+
+package_url=""
+if [ "$distro" == "Ubuntu" ]; then
+    if [ "$version" == "18.04" ]; then
+        package_url="https://packages.microsoft.com/config/ubuntu/18.04/multiarch/packages-microsoft-prod.deb"
+    elif [ "$version" == "20.04" ]; then
+        package_url="https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb"
+    elif [ "$version" == "22.04" ]; then
+        package_url="https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb"
+    else
+        echo "Unsupported Ubuntu version: $version"
+    fi
+else 
+  echo "Unsupported distro: $distro"
+fi
 
 echo "# Add packages.microsoft.com"
-adu_setup=/tmp/adu-setup
-mkdir -p $adu_setup
-curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list > $adu_setup/microsoft-prod.list
-cp $adu_setup/microsoft-prod.list /etc/apt/sources.list.d/
-curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > $adu_setup/microsoft.gpg
-cp $adu_setup/microsoft.gpg /etc/apt/trusted.gpg.d/
+wget "$package_url" -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+
+rm packages-microsoft-prod.deb
 apt-get update
-
-echo "# List available versions of Device Update Agent and dependencies "
-apt-cache policy aziot-edge aziot-identity-service deviceupdate-agent deliveryoptimization-agent libdeliveryoptimization libcurl4-openssl-dev libssl1.1
-
-echo "# Install the moby engine package (required by aziot-edge)"
-apt -y install moby-engine
-
-echo_green -e "\n Moby Engine installed successfully\n"
-
-echo "# Install the Azure IoT Edge version 1.4.8-1 package"
-apt -y install aziot-edge=1.4.8-1
-
-echo_green -e "\n Azure IoT Edge 1.4.8-1 installed successfully\n"
 
 echo "# Install the Delivery Optimization agent version 1.0.0 package"
 
 check_install_pkgs libcurl4-openssl-dev libboost-filesystem1.71.0 libproxy1v5 tree
 
-wget https://github.com/microsoft/do-client/releases/download/v1.0.0/ubuntu2004_arm64-packages.tar -O ubuntu2004_arm64-packages.tar
-tar -xvzf ubuntu2004_arm64-packages.tar
-rm ubuntu2004_arm64-packages.tar
-dpkg -i deliveryoptimization-agent_1.0.0_arm64.deb
-rm deliveryoptimization-agent_1.0.0_arm64.deb
-dpkg -i libdeliveryoptimization_1.0.0_arm64.deb
-rm libdeliveryoptimization_1.0.0_arm64.deb
-dpkg -i libdeliveryoptimization-dev_1.0.0_arm64.deb
-rm libdeliveryoptimization-dev_1.0.0_arm64.deb
+apt-get install libdeliveryoptimization-dev libdeliveryoptimization deliveryoptimization-agent -y
 
-echo_green -e "\nDelivery Optimization 1.0.0 packages installed successfully\n"
+echo_green -e "\nDelivery Optimization packages installed successfully\n"
 
-echo_green -e "# Installing the Device Update agent version 1.0.2 package"
-apt -y install deviceupdate-agent=1.0.2
+echo_green -e "# Installing the Device Update agent package"
+apt -y install deviceupdate-agent
 
 if [ "$ADU_OVERLAY_PATH" != "" ]; then
     echo "\n#\n# Update Device Update configuration, log, and data folders ownership...\n#\n"

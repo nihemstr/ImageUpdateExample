@@ -193,14 +193,16 @@ function mount_image() {
     detach_all_loopback $image_path
     test_for_image $image_path
     LODEV=$( losetup --partscan --show --find "${image_path}" )
-    boot_offset=$( parted $LODEV --script unit B print | grep "^ $boot_partition" | awk '{print $2-0}' )
-    boot_size_bytes=$( parted $LODEV --script unit B print | grep "^ $boot_partition" | awk '{print $4-0}' )
-    root_offset=$( parted $LODEV --script unit B print | grep "^ $root_partition" | awk '{print $2-0}' )
-    root_size_bytes=$( parted $LODEV --script unit B print | grep "^ $root_partition" | awk '{print $4-0}' )
+    boot_offset=$( parted $LODEV --script unit B print | grep "^ $boot_partition" | awk '{print $2}' | sed 's/B//' )
+    boot_size_bytes=$( parted $LODEV --script unit B print | grep "^ $boot_partition" | awk '{print $4-0}' | sed 's/B//' )
+    root_offset=$( parted $LODEV --script unit B print | grep "^ $root_partition" | awk '{print $2-0}' | sed 's/B//' )
+    echo "More debug shit"
+    echo "$(parted $LODEV --script unit B print)"
+    root_size_bytes=$( parted $LODEV --script unit B print | grep "^ $root_partition" | awk '{print $4}' | sed 's/B//' )
 
     if [ "$data_partition" != "" ]; then
-      data_offset=$( parted $LODEV --script unit B print | grep "^ $data_partition" | awk '{print $2-0}' )
-      data_size_bytes=$( parted $LODEV --script unit B print | grep "^ $data_partition" | awk '{print $4-0}' )
+      data_offset=$( parted $LODEV --script unit B print | grep "^ $data_partition" | awk '{print $2}' | sed 's/B//')
+      data_size_bytes=$( parted $LODEV --script unit B print | grep "^ $data_partition" | awk '{print $4}' | sed 's/B//' )
     fi
 
   else
@@ -611,7 +613,8 @@ function create_partition(){
     dd if=/dev/zero bs=1 count=$size_rem >> $image
   fi
 
-  added_bytes=$( ls -l $image | awk '{print $5-$size_bytes}' )
+  image_size=$( ls -l $image | awk '{print $5}' )
+  added_bytes=$(($image_size-$size_bytes))
 
   if [[ $added_bytes == $size_bytes ]]; then
     echor "Error: failed to add $size_bytes bytes to the image file. "
@@ -624,14 +627,14 @@ function create_partition(){
 
   echo "Create new partition "
   free_part=$( parted $LODEV --script unit B print free | grep "Free Space" | awk END'{print}' )
-  start_mi=$( echo $free_part | awk '{print $1-0}' )
-  end_mi=$( echo $free_part | awk '{print $2-0}' )
+  start_mi=$( echo $free_part | awk '{print $1}' )
+  end_mi=$( echo $free_part | awk '{print $2}' )
   parted $LODEV --script unit B mkpart $new_partition_type $new_partition_fstype $start_mi $end_mi
   
   # Format partition
   # Get the number of the newly created partition (by looking at the start offset, which is unique)
   new_part_info=$( parted $LODEV --script unit B print | grep $start_mi | awk END'{print}' )
-  new_part_number=$( echo $new_part_info | awk '{print $1-0}' )
+  new_part_number=$( echo $new_part_info | awk '{print $1}' )
   part_text=p$new_part_number
   mkfs.ext4 "$LODEV$part_text"
 
@@ -655,9 +658,11 @@ function create_rootfs_partition(){
   one_mi=$((1000 * 1000))
   one_mb=$((1024 * 1024))
 
-  
+  echo "Debug shit"
+  echo "$image"
+  echo "$image$partition"
   partitioninfo=$(sfdisk -l --bytes $image | grep "$image$partition")
-  size_in_bytes=$(echo $partitioninfo | awk '{print $5-0}')
+  size_in_bytes=$(echo $partitioninfo | awk '{print $5}')
 
   detach_all_loopback $image
   test_for_image $image

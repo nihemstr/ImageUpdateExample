@@ -20,6 +20,4 @@ export BASE_ADD_USER=yes
 export BASE_USER=pi
 export BASE_USER_PASSWORD=adupi
 
-export ADU_OVERLAY_PATH=adu.o
-
 export BASE_ZIP_IMG=${DIST_PATH}/image/ubuntu-20.04.5-preinstalled-server-arm64+raspi.img.xz

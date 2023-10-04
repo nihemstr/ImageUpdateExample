@@ -17,8 +17,74 @@ unpack /filesystem/home/pi /home/"${BASE_USER}" "${BASE_USER}"
 unpack /filesystem/home/root /root root
 unpack /filesystem/boot /boot
 
-echo "This is an example module, install and set up what you need here!"
-echo "$UBUNTU_IMG_VAR"
+distro=$(echo "$ADU_DISTRO_VERSION" | cut -d'-' -f1)
+version=$(echo "$ADU_DISTRO_VERSION" | cut -d'-' -f2)
+if [ -f /etc/os-release ]; then
+    # freedesktop.org and systemd
+    . /etc/os-release
+    distro=$NAME
+    version=$VERSION_ID
+fi
 
-# Unpack root at the end, so files are modified before
-unpack /filesystem/root /
+package_url=""
+if [ "$distro" == "Ubuntu" ]; then
+    if [ "$version" == "18.04" ]; then
+        package_url="https://packages.microsoft.com/config/ubuntu/18.04/multiarch/packages-microsoft-prod.deb"
+    elif [ "$version" == "20.04" ]; then
+        package_url="https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb"
+    elif [ "$version" == "22.04" ]; then
+        package_url="https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb"
+    else
+        echo "Unsupported Ubuntu version: $version"
+    fi
+else 
+  echo "Unsupported distro: $distro"
+fi
+
+echo "# Add packages.microsoft.com"
+wget "$package_url" -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+
+rm packages-microsoft-prod.deb
+apt-get update
+
+echo "# Install the Delivery Optimization agent version 1.0.0 package"
+
+check_install_pkgs libcurl4-openssl-dev libboost-filesystem1.71.0 libproxy1v5 tree
+
+apt-get install libdeliveryoptimization-dev libdeliveryoptimization deliveryoptimization-agent -y
+
+echo_green -e "\nDelivery Optimization packages installed successfully\n"
+
+echo_green -e "# Installing the Device Update agent package"
+apt -y install deviceupdate-agent
+
+if [ "$ADU_OVERLAY_PATH" != "" ]; then
+    echo "\n#\n# Update Device Update configuration, log, and data folders ownership...\n#\n"
+
+    echo "\n#\n# Before\n#\n"
+    tree -pug "/$ADU_OVERLAY_PATH"
+
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/etc/adu"
+    chmod u=rwx,g=rx,o= "/$ADU_OVERLAY_PATH/etc/adu"
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/work/etc/adu"
+    chmod u=rwx,g=rx,o= "/$ADU_OVERLAY_PATH/work/etc/adu"
+
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/var/lib/adu"
+    chmod u=rwx,g=rwx,o= "/$ADU_OVERLAY_PATH/var/lib/adu"
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/work/var/lib/adu"
+    chmod u=rwx,g=rwx,o= "/$ADU_OVERLAY_PATH/work/var/lib/adu"
+
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/var/log/adu"
+    chmod u=rwx,g=rx "/$ADU_OVERLAY_PATH/var/log/adu"
+    chown -R adu:adu "/$ADU_OVERLAY_PATH/work/var/log/adu"
+    chmod u=rwx,g=rx "/$ADU_OVERLAY_PATH/work/var/log/adu"
+
+    echo "\n#\n# After \n#\n"
+    tree -pug "/$ADU_OVERLAY_PATH" 
+fi
+
+echo_green -e "\nDevice Update for IoT Hub 1.0.2 package installed successfully\n"
+
+echo "# Install u-boot tools"
+check_install_pkgs u-boot-tools

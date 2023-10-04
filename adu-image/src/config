@@ -1,4 +1,4 @@
-export DIST_NAME=ubuntu-2004-adu
+export DIST_NAME=adu-image
 export DIST_VERSION=0.1.0
 
 # rpi-imager json generator settings
@@ -7,7 +7,7 @@ export RPI_IMAGER_DESCRIPTION="A Raspberry Pi distro built with CustomPiOS"
 export RPI_IMAGER_WEBSITE="https://github.com/guysoft/CustomPiOS"
 export RPI_IMAGER_ICON="https://raw.githubusercontent.com/guysoft/CustomPiOS/devel/media/rpi-imager-CustomPiOS.png"
 
-export MODULES="base(network,ubuntu-2004-adu)"
+export MODULES="base(network,adu-image)"
 
 # Base distro information
 export BASE_DISTRO=ubuntu
@@ -22,7 +22,6 @@ export BASE_USER_PASSWORD=adupi
 export BASE_IMAGE_ENLARGEROOT=2000
 
 # Don't resize root
-#export BASE_IMAGE_RESIZEROOT=2000
 export BUILD_OPTION_DONOT_RESIZEROOT=yes
 
 # Explicitly specify the image path here
